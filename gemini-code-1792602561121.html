@@ -1,0 +1,1635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MUSTAKIM — 3D Interactive Cybersecurity Portfolio</title>
+
+  <!-- Google Fonts (Space Grotesk for 100% straight 'M' & JetBrains Mono for HUD) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Three.js & GSAP -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+
+  <style>
+    :root {
+      --font-display: 'Space Grotesk', sans-serif;
+      --font-sans: 'Space Grotesk', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --accent-green: #00f59b;
+      --accent-cyan: #00f0ff;
+      --accent-pink: #ff2a85;
+      --accent-blue: #3b5bff;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    html, body {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: #050814;
+      color: #ffffff;
+      font-family: var(--font-sans);
+    }
+
+    /* ==========================================================================
+       1. PRELOADER
+       ========================================================================== */
+    #preloader {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: #04060f;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      will-change: opacity;
+    }
+
+    .preloader-grid {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(to right, rgba(0, 240, 255, 0.06) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(0, 240, 255, 0.06) 1px, transparent 1px);
+      background-size: 80px 80px;
+    }
+
+    .preloader-svg {
+      width: 210px;
+      height: 190px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .preloader-svg polygon,
+    .preloader-svg line {
+      fill: none;
+      stroke: #00f0ff;
+      stroke-width: 1.8;
+      stroke-dasharray: 800;
+      stroke-dashoffset: 800;
+    }
+
+    .preloader-bottom {
+      position: absolute;
+      bottom: 60px;
+      width: 290px;
+      text-align: center;
+    }
+
+    .preloader-status {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.24em;
+      color: rgba(255, 255, 255, 0.78);
+      margin-bottom: 10px;
+    }
+
+    .preloader-bar-track {
+      width: 100%;
+      height: 2px;
+      background: rgba(255, 255, 255, 0.14);
+      overflow: hidden;
+    }
+
+    .preloader-bar-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #00f0ff, #ff2a85);
+    }
+
+    /* ==========================================================================
+       2. GPU-ACCELERATED SINGLE STAGE & GRID
+       ========================================================================== */
+    #viewport-stage {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    #webgl-container {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    #architectural-grid {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+      background-image:
+        linear-gradient(to right, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+      background-size: 12.5vw 12.5vh;
+    }
+
+    body.blueprint-light #architectural-grid {
+      background-image:
+        linear-gradient(to right, rgba(15, 23, 42, 0.08) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(15, 23, 42, 0.08) 1px, transparent 1px);
+    }
+
+    #cyber-stripes {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      opacity: 0;
+      pointer-events: none;
+      background: repeating-linear-gradient(
+        -35deg,
+        transparent 0px,
+        transparent 28px,
+        rgba(0, 240, 255, 0.04) 28px,
+        rgba(0, 240, 255, 0.04) 56px
+      );
+      will-change: opacity;
+    }
+
+    /* ==========================================================================
+       3. TOP HUD HEADER & RIGHT PROGRESS BAR
+       ========================================================================== */
+    .hud-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      padding: 24px 44px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 100;
+      transition: color 0.3s ease;
+    }
+
+    .brand-logo {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 20px;
+      letter-spacing: 0.16em;
+      color: inherit;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+    }
+
+    .brand-logo .tri {
+      color: var(--accent-cyan);
+    }
+
+    .nav-pills {
+      display: flex;
+      gap: 28px;
+      list-style: none;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      letter-spacing: 0.1em;
+      background: rgba(10, 14, 28, 0.72);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      padding: 10px 28px;
+      border-radius: 999px;
+      backdrop-filter: blur(10px);
+    }
+
+    .nav-pills a {
+      color: inherit;
+      text-decoration: none;
+      opacity: 0.75;
+      transition: opacity 0.2s, color 0.2s;
+      cursor: pointer;
+    }
+
+    .nav-pills a:hover,
+    .nav-pills a.active-nav {
+      opacity: 1;
+      color: var(--accent-cyan);
+    }
+
+    .hud-btn {
+      background: rgba(0, 240, 255, 0.14);
+      border: 1px solid rgba(0, 240, 255, 0.45);
+      color: inherit;
+      padding: 9px 22px;
+      border-radius: 999px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      cursor: pointer;
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+
+    .hud-btn:hover {
+      transform: translateY(-2px);
+      background: rgba(0, 240, 255, 0.28);
+    }
+
+    body.blueprint-light .hud-header { color: #0b1021; }
+    body.blueprint-light .nav-pills {
+      background: rgba(255, 255, 255, 0.85);
+      border-color: rgba(15, 23, 42, 0.15);
+    }
+    body.blueprint-light .nav-pills a.active-nav { color: var(--accent-blue); }
+
+    .scroll-track-hud {
+      position: fixed;
+      right: 28px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 3px;
+      height: 170px;
+      background: rgba(255, 255, 255, 0.15);
+      z-index: 100;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .scroll-fill-hud {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(180deg, var(--accent-cyan), var(--accent-pink));
+      transform-origin: top;
+      transform: scaleY(0);
+      will-change: transform;
+    }
+
+    /* ==========================================================================
+       4. SCENE LAYERS (STRAIGHT 'M' & COMPLETE SCREEN FIT)
+       ========================================================================== */
+    .scene-layer {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      pointer-events: none;
+      will-change: transform, opacity;
+      visibility: hidden;
+      opacity: 0;
+      padding: 0 4vw;
+    }
+
+    .giant-wordmark {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: clamp(2.6rem, 9.2vw, 10.5rem);
+      letter-spacing: 0.08em;
+      line-height: 0.95;
+      text-transform: uppercase;
+      text-align: center;
+      white-space: nowrap;
+      max-width: 92vw;
+      will-change: transform;
+    }
+
+    /* LAYER 1: HERO */
+    #layer-hero {
+      visibility: visible;
+      opacity: 1;
+    }
+
+    #layer-hero .giant-wordmark {
+      color: #ffffff;
+      text-shadow:
+        -4px 0 18px rgba(0, 240, 255, 0.42),
+        4px 0 18px rgba(255, 42, 133, 0.42);
+    }
+
+    .hero-sub-badge {
+      margin-top: 16px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.28em;
+      color: rgba(255, 255, 255, 0.75);
+      background: rgba(8, 14, 34, 0.65);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      padding: 7px 18px;
+      border-radius: 999px;
+    }
+
+    .hero-pill-btn {
+      margin-top: 28px;
+      pointer-events: auto;
+      background: var(--accent-green);
+      color: #03180e;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 11px;
+      letter-spacing: 0.22em;
+      padding: 13px 38px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 8px 28px rgba(0, 245, 155, 0.45);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .hero-pill-btn:hover {
+      transform: scale(1.06);
+      box-shadow: 0 10px 36px rgba(0, 245, 155, 0.75);
+    }
+
+    /* LAYER 2: GIANT "CERTIFICATES / WORKS" KINETIC TEXT */
+    #layer-works-title .giant-wordmark {
+      font-size: clamp(2.8rem, 10.5vw, 12rem);
+      color: transparent;
+      -webkit-text-stroke: 2.5px rgba(255, 255, 255, 0.92);
+    }
+
+    /* ==========================================================================
+       LAYER 3: ENHANCED 3D VERIFIED CERTIFICATE CARDS CAROUSEL
+       ========================================================================== */
+    #layer-works-carousel {
+      perspective: 1600px;
+    }
+
+    .carousel-3d-track {
+      position: relative;
+      width: 100vw;
+      height: 410px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transform-style: preserve-3d;
+    }
+
+    .project-3d-card {
+      position: absolute;
+      width: clamp(310px, 46vw, 650px);
+      height: 375px;
+      border-radius: 18px;
+      overflow: hidden;
+      border: 1.5px solid rgba(0, 240, 255, 0.35);
+      box-shadow:
+        0 26px 70px rgba(0, 0, 0, 0.75),
+        inset 0 0 30px rgba(0, 240, 255, 0.12);
+      pointer-events: auto;
+      cursor: pointer;
+      text-decoration: none;
+      color: #ffffff;
+      will-change: transform, opacity;
+      backface-visibility: hidden;
+      transition: border-color 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .project-3d-card:hover {
+      border-color: var(--accent-green);
+      box-shadow:
+        0 30px 80px rgba(0, 245, 155, 0.28),
+        inset 0 0 40px rgba(0, 245, 155, 0.2);
+    }
+
+    .project-card-bg {
+      width: 100%;
+      height: 100%;
+      padding: 28px 32px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+    }
+
+    /* Subtle Holographic Grid Texture inside Certificate Card */
+    .project-card-bg::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+      background-size: 32px 32px;
+      pointer-events: none;
+    }
+
+    .project-card-bg::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to top, rgba(4, 6, 16, 0.94) 12%, rgba(4, 6, 16, 0.2) 60%, rgba(4, 6, 16, 0.5) 100%);
+      pointer-events: none;
+    }
+
+    .cert-card-header {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .project-top-tag {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: rgba(5, 8, 20, 0.8);
+      border: 1px solid rgba(0, 240, 255, 0.45);
+      color: var(--accent-cyan);
+    }
+
+    .verified-seal {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(0, 245, 155, 0.15);
+      border: 1px solid var(--accent-green);
+      color: var(--accent-green);
+    }
+
+    .verified-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent-green);
+      box-shadow: 0 0 8px var(--accent-green);
+    }
+
+    .project-center-logo {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+      font-family: var(--font-display);
+      font-size: clamp(1.5rem, 2.7vw, 2.4rem);
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      text-shadow: 0 6px 24px rgba(0, 0, 0, 0.8);
+    }
+
+    .cert-id-line {
+      display: block;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.2em;
+      color: rgba(255, 255, 255, 0.78);
+      margin-top: 6px;
+    }
+
+    .project-bottom-info {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .project-bottom-info h4 {
+      font-family: var(--font-display);
+      font-size: clamp(1rem, 1.5vw, 1.25rem);
+      margin-bottom: 10px;
+      line-height: 1.25;
+    }
+
+    .project-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .project-pills span {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      padding: 4px 10px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.14);
+    }
+
+    .open-cert-cta {
+      flex-shrink: 0;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      padding: 10px 16px;
+      border-radius: 999px;
+      background: #ffffff;
+      color: #050814;
+      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
+      transition: background 0.2s ease, transform 0.2s ease;
+    }
+
+    .project-3d-card:hover .open-cert-cta {
+      background: var(--accent-green);
+      transform: translateX(3px);
+    }
+
+    /* Quick Certificate Switcher Bar below Carousel */
+    .works-bottom-hud {
+      width: min(920px, 90vw);
+      margin-top: 22px;
+      padding-top: 14px;
+      border-top: 1px solid rgba(255, 255, 255, 0.2);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.85);
+      pointer-events: auto;
+    }
+
+    .cert-quick-pills {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .cert-pill-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #ffffff;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      padding: 6px 14px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .cert-pill-btn:hover,
+    .cert-pill-btn.active-cert {
+      background: var(--accent-cyan);
+      color: #040814;
+      border-color: var(--accent-cyan);
+      font-weight: 700;
+    }
+
+    /* LAYER 4: VISION BLUEPRINT */
+    .vision-giant-text {
+      position: absolute;
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: clamp(3.5rem, 12vw, 14rem);
+      color: transparent;
+      -webkit-text-stroke: 2px rgba(15, 23, 42, 0.16);
+      letter-spacing: 0.06em;
+    }
+
+    .vision-glass-panel {
+      position: relative;
+      z-index: 5;
+      margin-left: 34vw;
+      max-width: 470px;
+      padding: 36px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.94);
+      color: #0b1021;
+      border: 1px solid rgba(59, 91, 255, 0.25);
+      box-shadow: 0 24px 60px rgba(15, 23, 42, 0.12);
+      pointer-events: auto;
+    }
+
+    .vision-glass-panel .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent-blue);
+      letter-spacing: 0.2em;
+      margin-bottom: 12px;
+    }
+
+    .vision-glass-panel h3 {
+      font-family: var(--font-display);
+      font-size: 26px;
+      line-height: 1.25;
+      margin-bottom: 14px;
+    }
+
+    .vision-glass-panel p {
+      font-size: 14px;
+      line-height: 1.7;
+      color: #334155;
+    }
+
+    /* LAYER 5: 3D VIRTUAL WORLD PORTAL FRAME */
+    .portal-window-frame {
+      width: 84vw;
+      height: 72vh;
+      border-radius: 18px;
+      border: 1.5px solid rgba(0, 240, 255, 0.55);
+      box-shadow: inset 0 0 45px rgba(0, 240, 255, 0.15);
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      padding: 34px;
+      position: relative;
+    }
+
+    .portal-corner {
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      border-color: var(--accent-cyan);
+      border-style: solid;
+    }
+    .portal-corner.tl { top: 16px; left: 16px; border-width: 2px 0 0 2px; }
+    .portal-corner.tr { top: 16px; right: 16px; border-width: 2px 2px 0 0; }
+    .portal-corner.bl { bottom: 16px; left: 16px; border-width: 0 0 2px 2px; }
+    .portal-corner.br { bottom: 16px; right: 16px; border-width: 0 2px 2px 0; }
+
+    .portal-info-card {
+      background: rgba(6, 10, 25, 0.88);
+      border: 1px solid rgba(0, 240, 255, 0.4);
+      padding: 22px 26px;
+      border-radius: 12px;
+      max-width: 440px;
+      pointer-events: auto;
+    }
+
+    .portal-info-card span {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      color: var(--accent-cyan);
+    }
+
+    .portal-info-card h3 {
+      font-family: var(--font-display);
+      font-size: 22px;
+      margin: 8px 0;
+    }
+
+    /* ==========================================================================
+       LAYER 6: SPECIAL FINAL PAGE (OPERATOR + LINKEDIN + GITHUB + CONTACT)
+       ========================================================================== */
+    #layer-special-contact {
+      justify-content: center;
+      padding: 70px 44px 36px;
+    }
+
+    .special-hub-container {
+      width: min(1180px, 92vw);
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+      pointer-events: auto;
+    }
+
+    .operator-special-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 14px;
+      padding: 16px 24px;
+      background: rgba(8, 14, 34, 0.84);
+      border: 1px solid rgba(0, 240, 255, 0.35);
+      border-radius: 12px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.14em;
+    }
+
+    .operator-special-banner .op-key {
+      color: var(--accent-cyan);
+      font-weight: 700;
+    }
+
+    .operator-status-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-green);
+      box-shadow: 0 0 10px var(--accent-green);
+      margin-right: 8px;
+    }
+
+    .social-contact-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+
+    .hub-card {
+      background: rgba(10, 16, 36, 0.86);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 16px;
+      padding: 26px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 18px;
+      text-decoration: none;
+      color: #ffffff;
+      transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .hub-card:hover {
+      transform: translateY(-6px);
+      border-color: var(--accent-cyan);
+      box-shadow: 0 16px 40px rgba(0, 240, 255, 0.2);
+    }
+
+    .hub-card.linkedin-card:hover {
+      border-color: #0a66c2;
+      box-shadow: 0 16px 40px rgba(10, 102, 194, 0.35);
+    }
+
+    .hub-card.github-card:hover {
+      border-color: var(--accent-green);
+      box-shadow: 0 16px 40px rgba(0, 245, 155, 0.25);
+    }
+
+    .hub-card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .hub-badge {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      padding: 5px 12px;
+      border-radius: 999px;
+      background: rgba(0, 240, 255, 0.12);
+      color: var(--accent-cyan);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+    }
+
+    .hub-icon {
+      width: 34px;
+      height: 34px;
+      fill: #ffffff;
+      opacity: 0.9;
+    }
+
+    .hub-card h3 {
+      font-family: var(--font-display);
+      font-size: 24px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+
+    .hub-card p {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.7);
+      line-height: 1.55;
+    }
+
+    .hub-cta {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      color: var(--accent-green);
+    }
+
+    .footer-expand-row {
+      width: 100%;
+      border-top: 1px solid rgba(255, 255, 255, 0.16);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+      padding: 16px 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      overflow: hidden;
+    }
+
+    .footer-delta-svg {
+      width: clamp(46px, 6.5vw, 88px);
+      height: clamp(46px, 6.5vw, 88px);
+      flex-shrink: 0;
+    }
+
+    .footer-brand-letters {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: clamp(2.2rem, 7.8vw, 8.5rem);
+      line-height: 0.9;
+      letter-spacing: 0.08em;
+      display: flex;
+      overflow: hidden;
+    }
+
+    .footer-brand-letters span {
+      display: inline-block;
+      will-change: transform, opacity;
+    }
+
+    .footer-bottom-copy {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.65);
+    }
+
+    @media (max-width: 900px) {
+      .nav-pills { display: none; }
+      .hud-header { padding: 18px 20px; }
+      .vision-glass-panel { margin-left: 0; max-width: 90vw; }
+      .project-3d-card { width: 88vw; height: 340px; }
+      .social-contact-grid { grid-template-columns: 1fr; gap: 12px; }
+      .hub-card { padding: 18px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ========================================================================
+       1. PRELOADER
+       ======================================================================== -->
+  <div id="preloader">
+    <div class="preloader-grid"></div>
+    <svg class="preloader-svg" viewBox="0 0 200 180">
+      <polygon class="pre-draw" points="100,12 186,166 14,166" />
+      <polygon class="pre-draw" points="100,46 154,148 46,148" />
+      <line class="pre-draw" x1="34" y1="130" x2="166" y2="130" />
+      <line class="pre-draw" x1="100" y1="12" x2="100" y2="166" />
+    </svg>
+    <div class="preloader-bottom">
+      <div class="preloader-status" id="preloader-text">INITIALIZING 120FPS ENGINE // 00%</div>
+      <div class="preloader-bar-track">
+        <div class="preloader-bar-fill" id="preloader-bar"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       2. TOP HUD HEADER & RIGHT SCROLL INDICATOR
+       ======================================================================== -->
+  <header class="hud-header">
+    <a class="brand-logo" onclick="setSmoothTarget(0)">
+      <span class="tri">▲</span> <span id="hud-brand-text">MUSTAKIM</span>
+    </a>
+
+    <ul class="nav-pills" id="nav-list">
+      <li><a class="active-nav" onclick="setSmoothTarget(0.0)">Home</a></li>
+      <li><a onclick="setSmoothTarget(0.32)">Certificates</a></li>
+      <li><a onclick="setSmoothTarget(0.65)">Vision</a></li>
+      <li><a onclick="setSmoothTarget(0.81)">3D Core</a></li>
+      <li><a onclick="setSmoothTarget(0.98)">Contact Hub</a></li>
+    </ul>
+
+    <button class="hud-btn" onclick="setSmoothTarget(0.98)">
+      CONTACT ↗
+    </button>
+  </header>
+
+  <div class="scroll-track-hud">
+    <div class="scroll-fill-hud" id="scroll-bar-fill"></div>
+  </div>
+
+  <!-- ========================================================================
+       3. SINGLE LOCKED VIEWPORT
+       ======================================================================== -->
+  <div id="viewport-stage">
+    <div id="webgl-container"></div>
+    <div id="cyber-stripes"></div>
+    <div id="architectural-grid"></div>
+
+    <!-- SCENE LAYER 1: HERO -->
+    <div class="scene-layer" id="layer-hero">
+      <h1 class="giant-wordmark" id="hero-title">MUSTAKIM</h1>
+      <div class="hero-sub-badge">CYBERSECURITY &amp; CREATIVE WEBGL PORTFOLIO</div>
+      <button class="hero-pill-btn" onclick="setSmoothTarget(0.29)">
+        EXPLORE CERTIFICATES ↓
+      </button>
+    </div>
+
+    <!-- SCENE LAYER 2: GIANT "CERTIFICATES" KINETIC TEXT -->
+    <div class="scene-layer" id="layer-works-title">
+      <h2 class="giant-wordmark">CERTIFICATES</h2>
+    </div>
+
+    <!-- SCENE LAYER 3: 3D CURVED CERTIFICATES CAROUSEL -->
+    <div class="scene-layer" id="layer-works-carousel">
+      <div class="carousel-3d-track" id="carousel-3d-track">
+        <!-- Injected dynamically with your 4 live certificate URLs -->
+      </div>
+
+      <div class="works-bottom-hud">
+        <span id="work-counter">CREDENTIAL 01 / 04 — CLICK ANY CARD TO VERIFY ↗</span>
+        <div class="cert-quick-pills" id="cert-quick-pills">
+          <button class="cert-pill-btn active-cert" onclick="setSmoothTarget(0.29)">01 // CCC</button>
+          <button class="cert-pill-btn" onclick="setSmoothTarget(0.356)">02 // OPSWAT</button>
+          <button class="cert-pill-btn" onclick="setSmoothTarget(0.423)">03 // FORAGE I</button>
+          <button class="cert-pill-btn" onclick="setSmoothTarget(0.49)">04 // FORAGE II</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCENE LAYER 4: VISION BLUEPRINT -->
+    <div class="scene-layer" id="layer-vision">
+      <div class="vision-giant-text">VISION</div>
+      <div class="vision-glass-panel">
+        <div class="eyebrow">01 // VERIFIED CYBERSECURITY &amp; WEBGL</div>
+        <h3>Zero-Trust Security Meets 120FPS 3D Web Architecture.</h3>
+        <p>
+          Backed by industry-recognized certifications from OPSWAT Academy, The Forage, and Smart Certification (CCC), combined with penetration testing, network packet analysis, and real-time Three.js engineering.
+        </p>
+      </div>
+    </div>
+
+    <!-- SCENE LAYER 5: 3D VIRTUAL WORLD PORTAL -->
+    <div class="scene-layer" id="layer-portal">
+      <div class="portal-window-frame">
+        <div class="portal-corner tl"></div>
+        <div class="portal-corner tr"></div>
+        <div class="portal-corner bl"></div>
+        <div class="portal-corner br"></div>
+
+        <div class="portal-info-card">
+          <span>3D SPATIAL CORE // REAL-TIME WEBGL</span>
+          <h3>Interactive Cyber-Atrium &amp; Helical Core</h3>
+          <p style="font-size: 13px; color: rgba(255,255,255,0.75); line-height: 1.6;">
+            Move your cursor and scroll wheel to orbit the 3D architectural dome, gyroscopic energy rings, and floating cyber-crystals.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCENE LAYER 6: SPECIAL FINAL PAGE (OPERATOR + LINKEDIN + GITHUB + CONTACT) -->
+    <div class="scene-layer" id="layer-special-contact">
+      <div class="special-hub-container">
+
+        <!-- Operator Telemetry Banner -->
+        <div class="operator-special-banner">
+          <div>
+            <span class="operator-status-dot"></span>
+            <span class="op-key">OPERATOR //</span> <span id="special-operator-name">MUSTAKIM SHIRAJ MULANI</span>
+          </div>
+          <div>
+            <span class="op-key">CREDENTIALS //</span> 04 VERIFIED CERTIFICATES
+          </div>
+          <div>
+            <span class="op-key">STAGE //</span> 06_CONTACT_COMMAND_HUB
+          </div>
+        </div>
+
+        <!-- 3 Interactive Cards: LinkedIn + GitHub + Direct Contact -->
+        <div class="social-contact-grid">
+          <a class="hub-card linkedin-card" id="linkedin-link" href="https://www.linkedin.com" target="_blank" rel="noopener noreferrer">
+            <div class="hub-card-top">
+              <span class="hub-badge">PROFESSIONAL NETWORK</span>
+              <svg class="hub-icon" viewBox="0 0 24 24">
+                <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77z"/>
+              </svg>
+            </div>
+            <div>
+              <h3>LinkedIn Profile</h3>
+              <p>Connect with Mustakim Shiraj Mulani for cybersecurity internships, penetration testing, and collaborations.</p>
+            </div>
+            <div class="hub-cta">OPEN LINKEDIN PAGE ↗</div>
+          </a>
+
+          <a class="hub-card github-card" id="github-link" href="https://github.com" target="_blank" rel="noopener noreferrer">
+            <div class="hub-card-top">
+              <span class="hub-badge">CODE &amp; SECURITY REPOS</span>
+              <svg class="hub-icon" viewBox="0 0 24 24">
+                <path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2z"/>
+              </svg>
+            </div>
+            <div>
+              <h3>GitHub Portfolio</h3>
+              <p>Explore SynQoraX AI Forensics, Kali Linux tools, WebGL 3D repositories, and open-source projects.</p>
+            </div>
+            <div class="hub-cta">OPEN GITHUB PROFILE ↗</div>
+          </a>
+
+          <a class="hub-card" id="email-link" href="mailto:mustakim@example.com">
+            <div class="hub-card-top">
+              <span class="hub-badge">DIRECT TRANSMISSION</span>
+              <svg class="hub-icon" viewBox="0 0 24 24">
+                <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+              </svg>
+            </div>
+            <div>
+              <h3>Direct Contact</h3>
+              <p>Send a direct message for project inquiries, security audits, or interactive 3D web development.</p>
+            </div>
+            <div class="hub-cta">SEND EMAIL MESSAGE ↗</div>
+          </a>
+        </div>
+
+        <!-- Expanding MUSTAKIM Monolith Footer -->
+        <div class="footer-expand-row">
+          <svg class="footer-delta-svg" viewBox="0 0 160 150">
+            <polygon points="80,10 152,140 8,140" fill="none" stroke="#00f0ff" stroke-width="13" />
+            <line x1="28" y1="106" x2="132" y2="106" stroke="#ffffff" stroke-width="10" />
+          </svg>
+          <div class="footer-brand-letters" id="footer-letters"></div>
+        </div>
+
+        <div class="footer-bottom-copy">
+          <span onclick="setSmoothTarget(0)" style="cursor:pointer; color:var(--accent-cyan);">↑ BACK TO TOP</span>
+          <span id="footer-copy">©2026 Mustakim Shiraj Mulani. All Rights Reserved.</span>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       4. 120FPS INERTIAL PHYSICS + WEBGL 3D ENGINE
+       ======================================================================== -->
+  <script>
+    /* ========================================================================
+       YOUR 4 VERIFIED CERTIFICATES & PROFILE CONFIG
+       ======================================================================== */
+    const PORTFOLIO_DATA = {
+      brandName: "MUSTAKIM",
+      fullName: "MUSTAKIM SHIRAJ MULANI",
+      linkedinUrl: "https://www.linkedin.com/",
+      githubUrl: "https://github.com/",
+      emailAddress: "mailto:mustakim@example.com",
+      copyright: "©2026 Mustakim Shiraj Mulani — Verified Cybersecurity Portfolio",
+      certificates: [
+        {
+          code: "01 // SMART CERTIFICATION",
+          badge: "CCC CERTIFIED",
+          credId: "CREDENTIAL ID: MKDRC0000007940",
+          title: "Course on Computer Concepts (CCC) — Official Certification",
+          tags: ["IT Fundamentals", "Systems & Networking", "Verified"],
+          gradient: "linear-gradient(135deg, #071936 0%, #1c4ed8 50%, #00f0ff 100%)",
+          url: "https://smartcertification.in/search.php?srch-term=MKDRC0000007940#"
+        },
+        {
+          code: "02 // OPSWAT ACADEMY",
+          badge: "OPSWAT CIP",
+          credId: "CREDENTIAL ID: Z_eIP5atLw",
+          title: "OPSWAT Academy — Critical Infrastructure Protection",
+          tags: ["OPSWAT Security", "Zero-Trust CIP", "Cybersecurity"],
+          gradient: "linear-gradient(135deg, #24072b 0%, #831843 50%, #ff2a85 100%)",
+          url: "https://learn.opswatacademy.com/certificate/Z_eIP5atLw"
+        },
+        {
+          code: "03 // THE FORAGE SIMULATION I",
+          badge: "CYBER SECURITY",
+          credId: "CERT ID: ifobHAoMjQs9s6bKS",
+          title: "Cybersecurity Job Simulation — Completion Certificate",
+          tags: ["Threat Analysis", "SOC Operations", "Forage Verified"],
+          gradient: "linear-gradient(135deg, #032620 0%, #047857 50%, #00f59b 100%)",
+          url: "https://www.theforage.com/completion-certificates/ifobHAoMjQs9s6bKS/gmf3ypEXBj2wvfQWC_ifobHAoMjQs9s6bKS_6aa10ca15fb8cbf05e7e1076_1789539889539_completion_certificate.pdf"
+        },
+        {
+          code: "04 // THE FORAGE SIMULATION II",
+          badge: "THREAT DEFENSE",
+          credId: "CERT ID: 9PBTqmSxAf6zZTseP",
+          title: "Security Assessment & Threat Simulation — Official Certificate",
+          tags: ["Incident Response", "Phishing Defense", "Forage Verified"],
+          gradient: "linear-gradient(135deg, #271206 0%, #9a3412 50%, #f59e0b 100%)",
+          url: "https://www.theforage.com/completion-certificates/9PBTqmSxAf6zZTseP/E9pA6qsdbeyEkp3ti_9PBTqmSxAf6zZTseP_6aa10ca15fb8cbf05e7e1076_1789130542112_completion_certificate.pdf"
+        }
+      ]
+    };
+
+    // Populate Branding & Social Links
+    document.getElementById('hud-brand-text').textContent = PORTFOLIO_DATA.brandName;
+    document.getElementById('hero-title').textContent = PORTFOLIO_DATA.brandName;
+    document.getElementById('special-operator-name').textContent = PORTFOLIO_DATA.fullName;
+    document.getElementById('linkedin-link').href = PORTFOLIO_DATA.linkedinUrl;
+    document.getElementById('github-link').href = PORTFOLIO_DATA.githubUrl;
+    document.getElementById('email-link').href = PORTFOLIO_DATA.emailAddress;
+    document.getElementById('footer-copy').textContent = PORTFOLIO_DATA.copyright;
+
+    // Populate Footer Letters
+    const footerLettersEl = document.getElementById('footer-letters');
+    const footerSpans = [];
+    PORTFOLIO_DATA.brandName.split('').forEach(ch => {
+      const s = document.createElement('span');
+      s.textContent = ch;
+      footerLettersEl.appendChild(s);
+      footerSpans.push(s);
+    });
+
+    // Populate 3D Clickable Certificate Cards
+    const carouselTrack = document.getElementById('carousel-3d-track');
+    const cardElements = [];
+
+    PORTFOLIO_DATA.certificates.forEach((cert) => {
+      const card = document.createElement('a');
+      card.className = 'project-3d-card';
+      card.href = cert.url;
+      card.target = '_blank';
+      card.rel = 'noopener noreferrer';
+      card.title = `Click to open ${cert.title}`;
+      card.innerHTML = `
+        <div class="project-card-bg" style="background: ${cert.gradient};">
+          <div class="cert-card-header">
+            <span class="project-top-tag">${cert.code}</span>
+            <span class="verified-seal"><span class="verified-dot"></span>VERIFIED</span>
+          </div>
+          <div class="project-center-logo">
+            ${cert.badge}
+            <span class="cert-id-line">${cert.credId}</span>
+          </div>
+          <div class="project-bottom-info">
+            <div>
+              <h4>${cert.title}</h4>
+              <div class="project-pills">
+                ${cert.tags.map(t => `<span>${t}</span>`).join('')}
+              </div>
+            </div>
+            <div class="open-cert-cta">OPEN CERT ↗</div>
+          </div>
+        </div>
+      `;
+      carouselTrack.appendChild(card);
+      cardElements.push(card);
+    });
+
+    /* ========================================================================
+       CUSTOM INERTIAL SMOOTH-SCROLL ENGINE
+       ======================================================================== */
+    let targetProgress = 0;
+    let smoothProgress = 0;
+    let scrollVelocity = 0;
+    let isPreloading = true;
+
+    function setSmoothTarget(val) {
+      targetProgress = Math.max(0, Math.min(1, val));
+    }
+
+    window.addEventListener('wheel', (e) => {
+      if (isPreloading) return;
+      const delta = Math.sign(e.deltaY) * Math.min(Math.abs(e.deltaY), 120);
+      targetProgress = Math.max(0, Math.min(1, targetProgress + delta * 0.00065));
+    }, { passive: true });
+
+    let touchStartY = 0;
+    window.addEventListener('touchstart', (e) => {
+      touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+
+    window.addEventListener('touchmove', (e) => {
+      if (isPreloading) return;
+      const dy = touchStartY - e.touches[0].clientY;
+      touchStartY = e.touches[0].clientY;
+      targetProgress = Math.max(0, Math.min(1, targetProgress + dy * 0.0015));
+    }, { passive: true });
+
+    window.addEventListener('keydown', (e) => {
+      if (isPreloading) return;
+      if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') {
+        targetProgress = Math.min(1, targetProgress + 0.06);
+      } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+        targetProgress = Math.max(0, targetProgress - 0.06);
+      }
+    });
+
+    /* ========================================================================
+       THREE.JS HIGH-PERFORMANCE SCENE SETUP
+       ======================================================================== */
+    const container = document.getElementById('webgl-container');
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x050814, 0.035);
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 150);
+    camera.position.set(0, 0, -14);
+
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      powerPreference: 'high-performance'
+    });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setClearColor(0x050814, 1);
+    container.appendChild(renderer.domElement);
+
+    const BG_PALETTE = [
+      new THREE.Color(0x060a1e), // 0: Deep Cyber Midnight (Hero)
+      new THREE.Color(0x16072b), // 1: Electric Velvet Violet (Certificates Title)
+      new THREE.Color(0x041924), // 2: Deep Teal-Cyan Archive (Certificates Carousel)
+      new THREE.Color(0xeef4ff), // 3: Crisp Ice-White Blueprint (Vision)
+      new THREE.Color(0x07152e), // 4: Spatial Sapphire Portal (3D Core)
+      new THREE.Color(0x05091a)  // 5: Command Contact Hub (Special Final Page)
+    ];
+    const currentBgColor = new THREE.Color(0x060a1e);
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
+    scene.add(ambientLight);
+
+    const lightCyan = new THREE.PointLight(0x00f0ff, 4.5, 35);
+    lightCyan.position.set(-6, 5, 7);
+    scene.add(lightCyan);
+
+    const lightPink = new THREE.PointLight(0xff2a85, 4.5, 35);
+    lightPink.position.set(6, -5, 7);
+    scene.add(lightPink);
+
+    // 3D OBJECT 1: Multi-Layer Central Delta Monolith
+    const prismGroup = new THREE.Group();
+    scene.add(prismGroup);
+
+    function buildDeltaGeometry(outerR, innerR, depth) {
+      const shape = new THREE.Shape();
+      shape.moveTo(0, outerR);
+      shape.lineTo(outerR * 0.866, -outerR * 0.5);
+      shape.lineTo(-outerR * 0.866, -outerR * 0.5);
+      shape.closePath();
+
+      const hole = new THREE.Path();
+      hole.moveTo(0, innerR * 0.85);
+      hole.lineTo(-innerR * 0.866, -innerR * 0.55);
+      hole.lineTo(innerR * 0.866, -innerR * 0.55);
+      hole.closePath();
+      shape.holes.push(hole);
+
+      const geo = new THREE.ExtrudeGeometry(shape, {
+        depth: depth,
+        bevelEnabled: true,
+        bevelSegments: 3,
+        steps: 1,
+        bevelSize: 0.06,
+        bevelThickness: 0.06
+      });
+      geo.center();
+      return geo;
+    }
+
+    const prismMat = new THREE.MeshStandardMaterial({
+      color: 0x101c42,
+      metalness: 0.65,
+      roughness: 0.18
+    });
+
+    const edgeCyanMat = new THREE.LineBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0.9 });
+    const edgePinkMat = new THREE.LineBasicMaterial({ color: 0xff2a85, transparent: true, opacity: 0.85 });
+
+    const coreGeo = buildDeltaGeometry(2.5, 1.35, 0.52);
+    const frontGeo = buildDeltaGeometry(2.05, 1.22, 0.2);
+    const backGeo = buildDeltaGeometry(2.85, 1.68, 0.2);
+
+    const prismCore = new THREE.Mesh(coreGeo, prismMat);
+    const prismFront = new THREE.Mesh(frontGeo, prismMat);
+    const prismBack = new THREE.Mesh(backGeo, prismMat);
+
+    prismCore.add(new THREE.LineSegments(new THREE.EdgesGeometry(coreGeo), edgeCyanMat));
+    prismFront.add(new THREE.LineSegments(new THREE.EdgesGeometry(frontGeo), edgePinkMat));
+    prismBack.add(new THREE.LineSegments(new THREE.EdgesGeometry(backGeo), edgeCyanMat));
+
+    const crossbarGeo = new THREE.BoxGeometry(2.45, 0.34, 0.72);
+    const crossbarMesh = new THREE.Mesh(crossbarGeo, prismMat);
+    crossbarMesh.position.set(0, -0.42, 0);
+    crossbarMesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(crossbarGeo), edgeCyanMat));
+
+    prismGroup.add(prismCore, prismFront, prismBack, crossbarMesh);
+
+    // 3D OBJECT 2: Triple Gyroscopic Energy Rings
+    const gyroGroup = new THREE.Group();
+    scene.add(gyroGroup);
+
+    const gyroRing1 = new THREE.Mesh(
+      new THREE.TorusGeometry(3.4, 0.025, 12, 90),
+      new THREE.MeshBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0.55 })
+    );
+    const gyroRing2 = new THREE.Mesh(
+      new THREE.TorusGeometry(3.9, 0.02, 12, 90),
+      new THREE.MeshBasicMaterial({ color: 0xff2a85, transparent: true, opacity: 0.45 })
+    );
+    const gyroRing3 = new THREE.Mesh(
+      new THREE.TorusGeometry(4.4, 0.018, 12, 90),
+      new THREE.MeshBasicMaterial({ color: 0x3b5bff, transparent: true, opacity: 0.4 })
+    );
+    gyroGroup.add(gyroRing1, gyroRing2, gyroRing3);
+
+    // 3D OBJECT 3: 3D Neon Triangular Warp Tunnel
+    const tunnelGroup = new THREE.Group();
+    scene.add(tunnelGroup);
+
+    const triRingGeo = new THREE.RingGeometry(3.3, 3.4, 3);
+    for (let i = 0; i < 12; i++) {
+      const m = new THREE.MeshBasicMaterial({
+        color: i % 2 === 0 ? 0x00f0ff : 0x3b5bff,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.35
+      });
+      const r = new THREE.Mesh(triRingGeo, m);
+      r.position.z = -i * 2.2;
+      r.rotation.z = -Math.PI / 6 + i * 0.06;
+      tunnelGroup.add(r);
+    }
+
+    // 3D OBJECT 4: GPU Particle Warp Field
+    const particleCount = 450;
+    const posArray = new Float32Array(particleCount * 3);
+    for (let i = 0; i < particleCount; i++) {
+      posArray[i * 3] = (Math.random() - 0.5) * 28;
+      posArray[i * 3 + 1] = (Math.random() - 0.5) * 18;
+      posArray[i * 3 + 2] = (Math.random() - 0.5) * 35;
+    }
+    const particleGeo = new THREE.BufferGeometry();
+    particleGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+    const particleMat = new THREE.PointsMaterial({
+      color: 0x00f0ff,
+      size: 0.075,
+      transparent: true,
+      opacity: 0.65
+    });
+    const particleSystem = new THREE.Points(particleGeo, particleMat);
+    scene.add(particleSystem);
+
+    // 3D OBJECT 5: Spatial Cyber-Atrium Dome
+    const worldGroup = new THREE.Group();
+    worldGroup.scale.setScalar(0.001);
+    scene.add(worldGroup);
+
+    const domeMesh = new THREE.Mesh(
+      new THREE.IcosahedronGeometry(3.1, 2),
+      new THREE.MeshBasicMaterial({ color: 0x00f0ff, wireframe: true, transparent: true, opacity: 0.35 })
+    );
+    worldGroup.add(domeMesh);
+
+    const ringSolidMat = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.6, roughness: 0.2 });
+    for (let i = 0; i < 4; i++) {
+      const torus = new THREE.Mesh(new THREE.TorusGeometry(2.4 - i * 0.45, 0.08, 14, 64), ringSolidMat);
+      torus.rotation.x = Math.PI / 2;
+      torus.position.y = i * 0.6 - 0.85;
+      worldGroup.add(torus);
+    }
+
+    /* ========================================================================
+       PRELOADER LAUNCH SEQUENCE
+       ======================================================================== */
+    gsap.to('.pre-draw', {
+      strokeDashoffset: 0,
+      duration: 1.2,
+      stagger: 0.08,
+      ease: 'power2.inOut'
+    });
+
+    const loaderObj = { val: 0 };
+    gsap.to(loaderObj, {
+      val: 100,
+      duration: 1.5,
+      ease: 'power2.inOut',
+      onUpdate: () => {
+        const v = Math.floor(loaderObj.val);
+        document.getElementById('preloader-bar').style.width = v + '%';
+        document.getElementById('preloader-text').textContent = `INITIALIZING 120FPS ENGINE // ${String(v).padStart(2, '0')}%`;
+      },
+      onComplete: () => {
+        gsap.to('#preloader', {
+          opacity: 0,
+          duration: 0.55,
+          onComplete: () => {
+            document.getElementById('preloader').remove();
+            isPreloading = false;
+          }
+        });
+
+        gsap.to(camera.position, { z: 6.5, duration: 1.7, ease: 'expo.out' });
+        gsap.to(tunnelGroup.position, {
+          z: 18,
+          duration: 1.8,
+          ease: 'expo.out',
+          onComplete: () => { tunnelGroup.visible = false; }
+        });
+      }
+    });
+
+    /* ========================================================================
+       FAST DOM LAYER HELPER
+       ======================================================================== */
+    const layers = {
+      hero: document.getElementById('layer-hero'),
+      worksTitle: document.getElementById('layer-works-title'),
+      worksCarousel: document.getElementById('layer-works-carousel'),
+      vision: document.getElementById('layer-vision'),
+      portal: document.getElementById('layer-portal'),
+      specialContact: document.getElementById('layer-special-contact')
+    };
+
+    function setLayerState(el, opacity, scale, yPx = 0) {
+      if (opacity <= 0.005) {
+        if (el.style.visibility !== 'hidden') el.style.visibility = 'hidden';
+      } else {
+        if (el.style.visibility !== 'visible') el.style.visibility = 'visible';
+        el.style.opacity = opacity.toFixed(3);
+        el.style.transform = `translate3d(0, ${yPx.toFixed(1)}px, 0) scale3d(${scale.toFixed(3)}, ${scale.toFixed(3)}, 1)`;
+      }
+    }
+
+    function smoothstep(min, max, value) {
+      const x = Math.max(0, Math.min(1, (value - min) / (max - min)));
+      return x * x * (3 - 2 * x);
+    }
+
+    function lerp(a, b, t) {
+      return a + (b - a) * t;
+    }
+
+    /* ========================================================================
+       SINGLE UNIFIED 120FPS RENDER & SCROLL ENGINE
+       ======================================================================== */
+    let mouseX = 0, mouseY = 0;
+    let targetMouseX = 0, targetMouseY = 0;
+
+    window.addEventListener('mousemove', (e) => {
+      targetMouseX = (e.clientX / window.innerWidth - 0.5) * 2;
+      targetMouseY = (e.clientY / window.innerHeight - 0.5) * 2;
+    }, { passive: true });
+
+    const scrollFillEl = document.getElementById('scroll-bar-fill');
+    const workCounterEl = document.getElementById('work-counter');
+    const cyberStripesEl = document.getElementById('cyber-stripes');
+    const navLinks = document.querySelectorAll('#nav-list a');
+    const certPillBtns = document.querySelectorAll('#cert-quick-pills .cert-pill-btn');
+
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const elapsed = clock.getElapsedTime();
+
+      // 1. Inertial Smooth Scroll Physics
+      const prevSmooth = smoothProgress;
+      smoothProgress += (targetProgress - smoothProgress) * 0.065;
+      scrollVelocity = (smoothProgress - prevSmooth) * 100;
+
+      mouseX += (targetMouseX - mouseX) * 0.07;
+      mouseY += (targetMouseY - mouseY) * 0.07;
+
+      const p = smoothProgress;
+      scrollFillEl.style.transform = `scaleY(${p.toFixed(4)})`;
+
+      // 2. GPU Background Color Interpolation
+      const scaledBg = p * (BG_PALETTE.length - 1);
+      const bgIdx = Math.min(BG_PALETTE.length - 2, Math.floor(scaledBg));
+      const bgFract = scaledBg - bgIdx;
+      currentBgColor.lerpColors(BG_PALETTE[bgIdx], BG_PALETTE[bgIdx + 1], bgFract);
+      renderer.setClearColor(currentBgColor, 1);
+      scene.fog.color.copy(currentBgColor);
+
+      const isBlueprint = p >= 0.57 && p <= 0.73;
+      if (isBlueprint !== document.body.classList.contains('blueprint-light')) {
+        document.body.classList.toggle('blueprint-light', isBlueprint);
+        prismMat.color.setHex(isBlueprint ? 0xdbeafe : 0x101c42);
+      }
+
+      cyberStripesEl.style.opacity = (p > 0.08 && p < 0.55) ? 1 : 0;
+
+      // 3. Continuous 3D Objects Movement
+      prismGroup.rotation.y = p * Math.PI * 4.5 + mouseX * 0.35;
+      prismGroup.rotation.x = Math.sin(p * Math.PI * 3) * 0.4 + mouseY * 0.3 + scrollVelocity * 0.08;
+      prismGroup.rotation.z = Math.cos(p * Math.PI * 2) * 0.25;
+
+      const splitAmount = Math.sin(Math.min(1, p * 1.8) * Math.PI) * 1.15;
+      prismFront.position.z = splitAmount;
+      prismBack.position.z = -splitAmount;
+
+      if (p < 0.25) {
+        prismGroup.position.x = 0;
+        prismGroup.position.z = lerp(0, 1.2, p / 0.25);
+      } else if (p < 0.55) {
+        const t = smoothstep(0.25, 0.32, p);
+        prismGroup.position.z = lerp(1.2, -3.5, t);
+        prismGroup.position.x = 0;
+      } else if (p < 0.73) {
+        const t = smoothstep(0.55, 0.61, p);
+        prismGroup.position.x = lerp(0, -1.85, t);
+        prismGroup.position.z = lerp(-3.5, 0.4, t);
+      } else if (p < 0.88) {
+        const t = smoothstep(0.73, 0.80, p);
+        prismGroup.position.x = lerp(-1.85, 0, t);
+        prismGroup.position.z = lerp(0.4, 8.5, t);
+      } else {
+        const t = smoothstep(0.88, 0.94, p);
+        prismGroup.position.x = 0;
+        prismGroup.position.y = lerp(0, 0.2, t);
+        prismGroup.position.z = lerp(8.5, -3.2, t);
+      }
+
+      gyroGroup.position.copy(prismGroup.position);
+      gyroRing1.rotation.x = elapsed * 0.5 + p * 8;
+      gyroRing1.rotation.y = elapsed * 0.3 + mouseX * 0.4;
+      gyroRing2.rotation.y = -elapsed * 0.4 + p * 10;
+      gyroRing2.rotation.z = elapsed * 0.2 + mouseY * 0.4;
+      gyroRing3.rotation.x = elapsed * 0.3 - p * 6;
+      gyroGroup.scale.setScalar(1 + Math.sin(p * Math.PI * 2) * 0.22);
+
+      particleSystem.rotation.y = p * 2.2 + elapsed * 0.03;
+      particleSystem.rotation.x = mouseY * 0.15;
+      particleSystem.position.z = (p * 20) % 10;
+
+      const portalVis = smoothstep(0.72, 0.78, p) * (1 - smoothstep(0.85, 0.90, p));
+      worldGroup.scale.setScalar(Math.max(0.001, portalVis));
+      worldGroup.rotation.y = elapsed * 0.3 + p * 6 + mouseX * 0.5;
+      worldGroup.rotation.x = mouseY * 0.3;
+
+      // 4. Synced HTML Scene Overlays
+      // LAYER 1: HERO (0.00 -> 0.14)
+      const heroOp = 1 - smoothstep(0.03, 0.13, p);
+      const heroScale = 1 + smoothstep(0.0, 0.14, p) * 0.85;
+      setLayerState(layers.hero, heroOp, heroScale);
+
+      // LAYER 2: CERTIFICATES TITLE (0.11 -> 0.27)
+      const worksTitleOp = smoothstep(0.11, 0.17, p) * (1 - smoothstep(0.22, 0.27, p));
+      const worksTitleScale = lerp(0.6, 1.65, smoothstep(0.11, 0.27, p));
+      setLayerState(layers.worksTitle, worksTitleOp, worksTitleScale);
+
+      // LAYER 3: 3D CURVED CERTIFICATES CAROUSEL (0.25 -> 0.55)
+      const carouselOp = smoothstep(0.25, 0.30, p) * (1 - smoothstep(0.50, 0.55, p));
+      const carouselScale = lerp(0.88, 1.0, smoothstep(0.25, 0.30, p));
+      setLayerState(layers.worksCarousel, carouselOp, carouselScale);
+
+      if (carouselOp > 0.005) {
+        const cProg = Math.max(0, Math.min(1, (p - 0.29) / 0.20));
+        const total = cardElements.length;
+        const activeFloat = cProg * (total - 1);
+        const activeIdx = Math.round(activeFloat);
+        workCounterEl.textContent = `CREDENTIAL 0${activeIdx + 1} / 0${total} — CLICK CARD TO OPEN OFFICIAL CERTIFICATE ↗`;
+
+        certPillBtns.forEach((btn, bIdx) => {
+          btn.classList.toggle('active-cert', bIdx === activeIdx);
+        });
+
+        for (let i = 0; i < total; i++) {
+          const offset = i - activeFloat;
+          const tx = offset * 56;
+          const tz = -Math.abs(offset) * 240;
+          const ry = -offset * 30;
+          const cardOp = Math.max(0, 1 - Math.abs(offset) * 0.55);
+          cardElements[i].style.transform = `translate3d(${tx.toFixed(2)}%, 0, ${tz.toFixed(1)}px) rotateY(${ry.toFixed(2)}deg)`;
+          cardElements[i].style.opacity = cardOp.toFixed(3);
+          cardElements[i].style.zIndex = Math.round(20 - Math.abs(offset) * 5);
+        }
+      }
+
+      // LAYER 4: VISION BLUEPRINT (0.55 -> 0.73)
+      const visionOp = smoothstep(0.55, 0.61, p) * (1 - smoothstep(0.68, 0.73, p));
+      const visionY = lerp(40, -30, smoothstep(0.55, 0.73, p));
+      setLayerState(layers.vision, visionOp, 1, visionY);
+
+      // LAYER 5: 3D VIRTUAL WORLD PORTAL (0.72 -> 0.88)
+      const portalOp = smoothstep(0.72, 0.77, p) * (1 - smoothstep(0.84, 0.88, p));
+      const portalScale = lerp(0.84, 1.02, smoothstep(0.72, 0.88, p));
+      setLayerState(layers.portal, portalOp, portalScale);
+
+      // LAYER 6: SPECIAL FINAL PAGE — OPERATOR + LINKEDIN + GITHUB + CONTACT (0.87 -> 1.00)
+      const specialOp = smoothstep(0.87, 0.93, p);
+      const specialY = lerp(45, 0, specialOp);
+      setLayerState(layers.specialContact, specialOp, 1, specialY);
+
+      if (specialOp > 0.01) {
+        const letterProg = smoothstep(0.89, 0.97, p);
+        for (let i = 0; i < footerSpans.length; i++) {
+          const charT = Math.max(0, Math.min(1, (letterProg * 1.4) - i * 0.06));
+          const xPct = (1 - charT) * -100;
+          footerSpans[i].style.transform = `translate3d(${xPct.toFixed(1)}%, 0, 0)`;
+          footerSpans[i].style.opacity = charT.toFixed(2);
+        }
+      }
+
+      // Update Active Navigation Pill
+      let activeNavIdx = 0;
+      if (p < 0.15) activeNavIdx = 0;
+      else if (p < 0.55) activeNavIdx = 1;
+      else if (p < 0.73) activeNavIdx = 2;
+      else if (p < 0.87) activeNavIdx = 3;
+      else activeNavIdx = 4;
+
+      navLinks.forEach((link, idx) => {
+        link.classList.toggle('active-nav', idx === activeNavIdx);
+      });
+
+      renderer.render(scene, camera);
+    }
+
+    animate();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
